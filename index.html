@@ -825,9 +825,19 @@
     .cal-cell .day-num { font-size: 0.75rem; }
     .modal { width: 98%; max-height: 90vh; }
   }
+  .header-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+  }
+  .header-actions .btn { font-size: 0.75rem; padding: 6px 12px; }
+  .header-actions .btn .icon { font-size: 0.9rem; }
+  #import-file-input { display: none; }
   @media (max-width: 600px) {
     .tab-btn span.tab-label { display: none; }
     .tab-btn { padding: 8px 12px; }
+    .header-actions .btn span.exp-label { display: none; }
+    .header-actions .btn { padding: 6px 8px; }
   }
 </style>
 </head>
@@ -837,6 +847,7 @@
 <header class="header">
   <div class="logo">Life Tracker</div>
   <nav class="tabs">
+    <input type="file" id="import-file-input" accept=".json" onchange="importData(this)">
     <button class="tab-btn active" data-tab="diary">
       <span class="icon">&#128214;</span>
       <span class="tab-label">Diario</span>
@@ -854,6 +865,10 @@
       <span class="tab-label">Resultados</span>
     </button>
   </nav>
+  <div class="header-actions">
+    <button class="btn" onclick="exportData()" title="Exportar datos"><span class="icon">&#128229;</span> <span class="exp-label">Exportar</span></button>
+    <button class="btn" onclick="document.getElementById('import-file-input').click()" title="Importar datos"><span class="icon">&#128228;</span> <span class="exp-label">Importar</span></button>
+  </div>
 </header>
 
 <main class="main">
@@ -1764,6 +1779,51 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// ════════════════════════════════════════
+// EXPORT / IMPORT
+// ════════════════════════════════════════
+function exportData() {
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'lifetracker_backup_' + todayKey() + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!imported.diary && !imported.tasks && !imported.goals) {
+        alert('Archivo no v\u00e1lido');
+        return;
+      }
+      if (!confirm('\u00bfImportar datos? Esto reemplazar\u00e1 todos los datos actuales.')) return;
+      data = imported;
+      if (!data.diary) data.diary = {};
+      if (!data.tasks) data.tasks = {};
+      if (!data.goals) data.goals = [];
+      saveData();
+      selectedGoalId = null;
+      renderCalendar('diary');
+      renderCalendar('tasks');
+      renderGoalsSidebar();
+      renderGoalDetail();
+      alert('Datos importados correctamente');
+    } catch(err) {
+      alert('Error al leer el archivo');
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
 }
 
 // ════════════════════════════════════════
